@@ -57,7 +57,12 @@ class TwitterCrawler(BaseCrawler):
     - skip_rts: 跳过转推
     - skip_replies: 跳过回复（@开头）
     - min_engagement: 最低互动量（like+retweet+reply）
+
+    NOTE: X Home Timeline 有算法插序，可能突然出现几天前的推文。
+    因此关闭增量早停（STOP_AFTER_HITS 设极高），每批全部筛选。
     """
+    
+    STOP_AFTER_HITS = 999  # 不做早停，全部过 known_uids 筛选
 
     def __init__(self, config: dict = None):
         super().__init__(source_key="twitter", prefix="tw", config=config)
@@ -167,7 +172,7 @@ class TwitterCrawler(BaseCrawler):
         API 返回的 Home Timeline 可能有算法插序，
         这里先按 created_at 严格倒序排序，确保增量早停逻辑正确。
         """
-        raw_tweets = self._fetch_timeline(max_results=50)
+        raw_tweets = self._fetch_timeline(max_results=100)
         
         # 按 created_at 严格倒序（最新在前），消除 API 的算法排序干扰
         raw_tweets.sort(key=lambda t: t.get("created_at", ""), reverse=True)
