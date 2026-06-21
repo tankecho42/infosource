@@ -12,10 +12,13 @@ import json
 import os
 import re
 import subprocess
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Set
 
 from .base import Article, BaseCrawler
+
+# 北京时间 (UTC+8)
+CST = timezone(timedelta(hours=8))
 
 # xurl 命令完整路径
 XURL = os.path.expanduser("~/.local/bin/xurl")
@@ -28,6 +31,19 @@ def _strip_rt(text: str) -> str:
     """去掉 RT @user: 前缀，还原原文内容"""
     m = re.match(r'^RT @\w+:\s*', text)
     return text[m.end():] if m else text
+
+
+def _utc_to_cst(utc_str: str) -> str:
+    """将 UTC ISO 时间转为北京时间可读字符串 'YYYY-MM-DD HH:MM'"""
+    if not utc_str:
+        return ""
+    try:
+        # 解析 ISO 8601: "2026-06-19T16:01:10.000Z"
+        dt = datetime.fromisoformat(utc_str.replace("Z", "+00:00"))
+        dt_cst = dt.astimezone(CST)
+        return dt_cst.strftime("%Y-%m-%d %H:%M")
+    except (ValueError, OSError):
+        return utc_str  # 解析失败原样返回
 
 
 class TwitterCrawler(BaseCrawler):
@@ -114,7 +130,7 @@ class TwitterCrawler(BaseCrawler):
             title=title,
             url=url,
             content=display_text,
-            published_at=created_at,
+            published_at=_utc_to_cst(created_at),
             author=author,
             author_url=author_url,
         )
