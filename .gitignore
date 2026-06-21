@@ -1,0 +1,11 @@
+# 数据库与缓存
+*.db
+*.db-wal
+*.db-shm
+card_cache/
+__pycache__/
+*.pyc
+
+# 敏感配置（含API key）
+.env
+config.yaml
