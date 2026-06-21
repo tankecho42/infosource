@@ -162,8 +162,15 @@ class TwitterCrawler(BaseCrawler):
         return False
 
     def fetch_new(self, known_uids: Set[str] = None) -> List[Article]:
-        """抓取新推文，支持增量早停"""
+        """抓取新推文，支持增量早停。
+        
+        API 返回的 Home Timeline 可能有算法插序，
+        这里先按 created_at 严格倒序排序，确保增量早停逻辑正确。
+        """
         raw_tweets = self._fetch_timeline(max_results=50)
+        
+        # 按 created_at 严格倒序（最新在前），消除 API 的算法排序干扰
+        raw_tweets.sort(key=lambda t: t.get("created_at", ""), reverse=True)
         if not known_uids:
             return [self._tweet_to_article(t) for t in raw_tweets if not self._should_skip(t)]
 
