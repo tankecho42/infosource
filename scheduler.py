@@ -17,9 +17,11 @@ from db import get_db, safe_commit
 
 # 爬虫注册表 — 新来源在这里注册一行
 from crawlers.linkresearcher import LinkResearcherCrawler
+from crawlers.twitter import TwitterCrawler
 
 CRAWLER_REGISTRY = {
     "linkresearcher": LinkResearcherCrawler,
+    "twitter": TwitterCrawler,
 }
 
 
