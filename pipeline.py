@@ -68,7 +68,7 @@ def llm_chat(providers, system_prompt, user_prompt, timeout=30):
             r = httpx.post(url, json={
                 "model": p["model"],
                 "messages": messages,
-                "max_tokens": 300,
+                "max_tokens": 500,
                 "temperature": 0.7,
             }, headers={
                 "Authorization": f"Bearer {p['api_key']}",
@@ -94,15 +94,19 @@ def llm_chat(providers, system_prompt, user_prompt, timeout=30):
 
 SUMMARY_SYSTEM = """你是 Echo，Tank 的数字伙伴。你在为 Tank 写新闻摘要。
 
-要求：
-- 2-3句话，精简到能扫一眼就懂：核心是什么事 + 为什么值得看
-- 你的判断：这事重不重要？真突破还是噱头？
-- 语气自然直接，像跟朋友说"嘿这条值得看"
-- 不要长篇大论，不要用"本文介绍了"这种公文腔
-- 中文输出"""
+你需要输出两样东西，严格按以下格式：
+
+摘要：（2-3句话，精简到能扫一眼就懂：核心是什么事 + 为什么值得看。附上你的判断：真突破还是噱头？语气自然直接，像跟朋友说"嘿这条值得看"。不要公文腔。中文。）
+标签：（2-4个标签，用英文逗号分隔。根据文章内容和主题生成，要具体。例如：AI安全,OpenAI,强化学习 / 光模块,半导体,Kioxia / 航天,SpaceX,星舰）
+
+示例：
+摘要：OpenAI发了篇研究，用强化学习训练模型在复杂对话中保持有益且安全的行为。值得关注——这不只是论文，是OpenAI在AGI安全上的实际投入。
+标签：AI安全,OpenAI,强化学习,对齐"""
+
+import re as _re
 
 def generate_summary(providers, article, content=None):
-    """为单篇文章生成摘要"""
+    """为单篇文章生成摘要和标签。返回 (summary, tags)。"""
     title = article["title"]
     url = article.get("url", "")
     source = article.get("source", "")
@@ -114,16 +118,43 @@ def generate_summary(providers, article, content=None):
     if content:
         # 截取前2000字
         user_parts.append(f"正文摘要：\n{content[:2000]}")
-    user_parts.append("请写2-3句中文摘要+你的判断。")
+    user_parts.append("请按格式输出摘要和标签。")
 
     user_prompt = "\n".join(user_parts)
-    summary = llm_chat(providers, SUMMARY_SYSTEM, user_prompt)
+    raw = llm_chat(providers, SUMMARY_SYSTEM, user_prompt)
 
-    if not summary:
-        # 所有 LLM 都挂了，用 fallback 模板
+    if not raw:
+        # 所有 LLM 都挂了，用 fallback
+        from engine import classify_article
+        kw_domains = list(classify_article(title).keys())
         summary = f"标题党含量不确定，自己点进去看吧。来源：{source}"
+        return summary, kw_domains if kw_domains else ["资讯"]
 
-    return summary
+    # 解析摘要和标签
+    summary = raw
+    tags = []
+
+    # 提取标签行
+    tag_match = _re.search(r'标签[：:](.+)', raw)
+    if tag_match:
+        tag_str = tag_match.group(1).strip()
+        # 同时处理中英文逗号
+        raw_tags = _re.split(r'[,，、\s]+', tag_str)
+        tags = [t.strip().strip("\"'""')") for t in raw_tags if t.strip()]
+        # 从摘要中移除标签行
+        summary = _re.sub(r'\n*标签[：:].+', '', raw).strip()
+
+    # 如果标签太少，补充关键词匹配的领域
+    if len(tags) < 2:
+        from engine import classify_article
+        kw_domains = list(classify_article(title).keys())
+        for d in kw_domains:
+            if d not in tags:
+                tags.append(d)
+        if len(tags) < 2:
+            tags.append("资讯")
+
+    return summary, tags
 
 
 # ── Pipeline 主流程 ───────────────────────────────────
@@ -230,18 +261,18 @@ def run_pipeline(score_threshold=0.5, dry_run=False, max_pushes=30):
             except Exception as e:
                 print(f"    抓正文失败: {e}")
 
-        # LLM 摘要
-        summary = generate_summary(providers, a, content)
+        # LLM 摘要 + 标签
+        summary, tags = generate_summary(providers, a, content)
         if summary:
             print(f"    摘要: {summary[:60]}...")
+            print(f"    标签: {','.join(tags)}")
         else:
             print(f"    ⚠️ 摘要生成失败，跳过")
             failed_count += 1
             continue
 
-        # 发卡片
-        domains_str = ",".join(domains) if domains else ""
-        card = build_card(uid, title, url, summary, score, domains, source, published_at, author, author_url)
+        # 发卡片（用 LLM 生成的标签覆盖关键词匹配的 domains）
+        card = build_card(uid, title, url, summary, score, tags, source, published_at, author, author_url)
         msg_id = send_card(token, INFO_FLOW, card)
 
         if msg_id:
