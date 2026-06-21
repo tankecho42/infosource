@@ -19,6 +19,8 @@ class Article:
     url: str
     content: str = ""  # 正文摘要
     published_at: str = ""  # 原始发布时间，ISO格式或可读字符串，空=未知
+    author: str = ""        # 作者名/账号，空=未知
+    author_url: str = ""    # 作者主页链接，空=无
 
 
 class BaseCrawler(abc.ABC):

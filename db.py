@@ -37,6 +37,8 @@ CREATE TABLE IF NOT EXISTS articles (
     title       TEXT NOT NULL,
     url         TEXT,
     content     TEXT,                       -- 正文摘要
+    author      TEXT DEFAULT '',            -- 作者名/账号
+    author_url  TEXT DEFAULT '',            -- 作者主页链接
     domains     TEXT,                       -- JSON array: 匹配到的领域
     published_at TEXT,                      -- 原始发布时间（各来源自填，可能为NULL）
     fetched_at  TEXT DEFAULT (datetime('now', 'localtime')),
@@ -82,6 +84,13 @@ def init_db():
     """初始化数据库表"""
     conn = get_db()
     conn.executescript(_SCHEMA)
+    # Migration: add author columns if missing (existing DBs)
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(articles)").fetchall()}
+    if "author" not in cols:
+        conn.execute("ALTER TABLE articles ADD COLUMN author TEXT DEFAULT ''")
+    if "author_url" not in cols:
+        conn.execute("ALTER TABLE articles ADD COLUMN author_url TEXT DEFAULT ''")
+    safe_commit(conn)
     conn.close()
 
 

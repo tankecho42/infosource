@@ -66,8 +66,8 @@ def check_source(source_key: str) -> dict:
     # 入库
     for a in new_articles:
         conn.execute(
-            "INSERT OR IGNORE INTO articles (uid, source, title, url, published_at) VALUES (?, ?, ?, ?, ?)",
-            (a.uid, a.source, a.title, a.url, a.published_at or None),
+            "INSERT OR IGNORE INTO articles (uid, source, title, url, author, author_url, published_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (a.uid, a.source, a.title, a.url, a.author, a.author_url, a.published_at or None),
         )
 
     # 更新来源的 last_check

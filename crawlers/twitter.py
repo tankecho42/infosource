@@ -101,6 +101,8 @@ class TwitterCrawler(BaseCrawler):
         author_id = tweet.get("author_id", "")
         username = self._user_cache.get(author_id, "i")
         url = f"https://x.com/{username}/status/{tid}"
+        author = f"@{username}" if username != "i" else ""
+        author_url = f"https://x.com/{username}" if username != "i" else ""
 
         # 互动量
         metrics = tweet.get("public_metrics", {})
@@ -113,6 +115,8 @@ class TwitterCrawler(BaseCrawler):
             url=url,
             content=display_text,
             published_at=created_at,
+            author=author,
+            author_url=author_url,
         )
 
     def _should_skip(self, tweet: dict) -> bool:

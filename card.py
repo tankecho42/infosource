@@ -52,7 +52,7 @@ def _source_meta(source):
     }.get(source, ("📡", source or "未知", "blue"))
 
 
-def build_card(uid, title, url, summary, score=0, domains=None, source="", published_at=""):
+def build_card(uid, title, url, summary, score=0, domains=None, source="", published_at="", author="", author_url=""):
     """构造单篇文章卡片"""
     emoji, src_name, template = _source_meta(source)
     elements = []
@@ -66,6 +66,9 @@ def build_card(uid, title, url, summary, score=0, domains=None, source="", publi
 
     # 元信息：每项一行，图标开头
     meta_lines = []
+    if author:
+        author_md = f"👤 {author}" if not author_url else f"👤 [{author}]({author_url})"
+        meta_lines.append(author_md)
     if published_at:
         meta_lines.append(f"🕒 {published_at}")
     if domains:
@@ -136,7 +139,7 @@ def cmd_push(args):
         sys.exit(1)
 
     domains = [d.strip() for d in args.domains.split(",") if d.strip()] if args.domains else []
-    card = build_card(args.uid, args.title, args.url, args.summary, args.score, domains, args.source, args.published_at)
+    card = build_card(args.uid, args.title, args.url, args.summary, args.score, domains, args.source, args.published_at, args.author, args.author_url)
 
     if args.dry_run:
         print(json.dumps(card, ensure_ascii=False, indent=2))
@@ -175,6 +178,8 @@ def main():
     p.add_argument("--domains", default="", help="领域标签，逗号分隔")
     p.add_argument("--source", default="", help="来源key")
     p.add_argument("--published-at", default="", help="原始发布时间")
+    p.add_argument("--author", default="", help="作者名/账号")
+    p.add_argument("--author-url", default="", help="作者主页链接")
     p.add_argument("--chat", default=INFO_FLOW, help="目标 chat_id")
     p.add_argument("--dry-run", action="store_true", help="只打印不发送")
     args = parser.parse_args()
