@@ -1,5 +1,9 @@
 # InfoSource 📡 — 多源信息推荐系统
 
+<p align="center">
+  <img src="assets/icon.png" width="120" height="120" alt="InfoSource Logo" />
+</p>
+
 统一接入多个信息来源（领研网、Twitter、RSS...），自动抓取、智能筛选、卡片推送、反馈学习。
 每30分钟自动运行，根据你的兴趣偏好推送值得看的内容，越用越懂你。
 
